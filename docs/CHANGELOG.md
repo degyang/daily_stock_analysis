@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 完善 Futu OpenD 港股数据源接入：系统设置支持 OpenD 地址、端口和港股实时数据源优先级，保留 Longbridge、AkShare、YFinance fallback。
 - [测试] 增加 Futu 配置 schema、港股实时路由和 fallback 契约覆盖。
 - [文档] 新增本地 Toolbox 数据源集成设计：以 a-stock-data / global-stock-data 作为 A 股、港美股首选数据面，保留既有 fetcher 自动回退；明确本地软链接、统一虚拟环境与分阶段验证要求。
+- [新功能] 新增 `ENABLE_TOOLBOX_DATA_SOURCES`（默认关闭）及本地 toolbox 路径发现：启用时检查 `third_party/a-stock-data`、`third_party/global-stock-data` 并输出 provider diagnostics；缺失或失效时 fail-open 保持现有 DSA 数据源。Phase 1 不改变实际数据请求路由。
 
 - [新功能] 建立唯一、可生成、可校验、可降级的指数身份注册表：由 `scripts/stock_index_seeds/index_registry.csv` 的 31 项 manifest 确定性合并进 `apps/dsa-web/public/stocks.index.json`，运行时唯一真源为 JSON 中通过校验的 `active=true`/`assetType=index` 行，移除 `stock_list_parser` 的 5 项硬编码白名单；支持 `--index-only` 生成与字节稳定输出。
 - [新功能] 补齐显式 SH/SZ/CSI 指数 alias 收敛与 CSI 身份：`sh000300`/`000300.SH`/`sz399300`/`399300.SZ`/`000300.CSI` 均解析到 `sh000300`，`csi930955`/`930955.CSI` 解析到 `csi930955`；未登记 `.CSI` 输入返回 `unsupported`；裸数字恒为 stock 并仅通过 `matched_index` 暴露歧义。

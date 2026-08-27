@@ -1218,6 +1218,8 @@ class Config:
     enable_chip_distribution: bool = True
     # 东财接口补丁开关
     enable_eastmoney_patch: bool = False
+    # 本地 a-stock-data / global-stock-data toolbox 主源开关（当前为路径发现与诊断阶段）
+    enable_toolbox_data_sources: bool = False
     # 实时行情数据源优先级（逗号分隔）
     # 推荐顺序：tencent > akshare_sina > efinance > akshare_em > tushare
     # - tencent: 腾讯财经，有量比/换手率/市盈率等，单股查询稳定（推荐）
@@ -2221,6 +2223,10 @@ class Config:
             enable_chip_distribution=os.getenv('ENABLE_CHIP_DISTRIBUTION', 'true').lower() == 'true',
             # 东财接口补丁开关
             enable_eastmoney_patch=os.getenv('ENABLE_EASTMONEY_PATCH', 'false').lower() == 'true',
+            # 本地数据 toolbox；未开启时严格保持既有数据源行为。
+            enable_toolbox_data_sources=os.getenv(
+                'ENABLE_TOOLBOX_DATA_SOURCES', 'false'
+            ).lower() == 'true',
             # 实时行情数据源优先级：
             # - tencent: 腾讯财经，有量比/换手率/PE/PB等，单股查询稳定（推荐）
             # - akshare_sina: 新浪财经，基本行情稳定，但无量比

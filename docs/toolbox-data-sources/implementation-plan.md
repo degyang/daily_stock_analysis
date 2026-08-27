@@ -10,6 +10,8 @@
 
 ## Phase 1：开关、发现与可观测性
 
+状态：已实现开关、路径发现、缺失链接诊断和现有 fetcher 保持行为；adapter 接入仍待后续 Phase。
+
 - 新增 `ENABLE_TOOLBOX_DATA_SOURCES=false` 配置、注册表、`.env.example` 说明和设置页帮助。
 - 新增路径发现器：从 DSA 根目录定位 `third_party/a-stock-data` 与 `third_party/global-stock-data`，不写死绝对路径。
 - 缺失链接、不可读版本或缺依赖时记录 provider-unavailable，并明确进入旧源 fallback。
