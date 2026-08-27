@@ -79,6 +79,31 @@ class AStockToolboxFetcher(TencentFetcher):
         quote.is_stale = bool(amount_wan == 0 and quote.price == quote.pre_close)
         return quote
 
+    def get_company_info(self, stock_code: str) -> dict:
+        """Return the a-stock-data Eastmoney company-info contract."""
+        code = normalize_stock_code(stock_code)
+        symbol = self._symbol(stock_code)
+        if not code or not symbol:
+            return {}
+        market = 1 if symbol.startswith("sh") else 0
+        response = requests.get(
+            "https://push2.eastmoney.com/api/qt/stock/get",
+            params={
+                "fltt": "2", "invt": "2", "fields": "f57,f58,f84,f85,f127,f116,f117,f189,f43",
+                "secid": f"{market}.{code}",
+            },
+            headers={"User-Agent": "Mozilla/5.0"}, timeout=self._TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        data = (response.json() or {}).get("data") or {}
+        return {
+            "code": data.get("f57") or code, "name": data.get("f58") or "",
+            "industry": data.get("f127") or "", "total_shares": safe_float(data.get("f84")),
+            "float_shares": safe_float(data.get("f85")), "mcap": safe_float(data.get("f116")),
+            "float_mcap": safe_float(data.get("f117")), "list_date": str(data.get("f189") or ""),
+            "price": safe_float(data.get("f43")),
+        }
+
     @staticmethod
     def _symbol(stock_code: str) -> str:
         raw = (stock_code or "").strip().lower()

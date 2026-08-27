@@ -1,5 +1,7 @@
 # 实施与验证计划
 
+本计划严格采用“一阶段一 PR”：Phase 0/#1、Phase 1/#2、Phase 2/#3、Phase 3/#4、Phase 4/#5。每个 PR 合入前必须满足对应的 `requirements/`、`design/` 与 `acceptance/` 文档；详见专题 [README](README.md#分阶段交付基线)。
+
 ## Phase 0：基线与契约清单
 
 - 盘点 `DataFetcherManager` 的日线、实时、基本面、市场统计、板块和选股入口。
