@@ -17,6 +17,9 @@ from api.v1.schemas.common import (
 from api.v1.schemas.market_phase import MarketPhaseSummary
 from api.v1.schemas.analysis import (
     AnalyzeRequest,
+    QuickTechnicalAnalyzeRequest,
+    QuickTechnicalResult,
+    QuickTechnicalAnalysisResponse,
     AnalysisResultResponse,
     TaskAccepted,
     BatchTaskAcceptedResponse,
@@ -139,6 +142,9 @@ __all__ = [
     "MarketPhaseSummary",
     # analysis
     "AnalyzeRequest",
+    "QuickTechnicalAnalyzeRequest",
+    "QuickTechnicalResult",
+    "QuickTechnicalAnalysisResponse",
     "AnalysisResultResponse",
     "TaskAccepted",
     "BatchTaskAcceptedResponse",

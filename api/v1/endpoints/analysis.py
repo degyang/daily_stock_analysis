@@ -33,6 +33,8 @@ from api.deps import get_config_dep
 from api.v1.errors import api_error
 from api.v1.schemas.analysis import (
     AnalyzeRequest,
+    QuickTechnicalAnalyzeRequest,
+    QuickTechnicalAnalysisResponse,
     AnalysisResultResponse,
     TaskAccepted,
     BatchTaskAcceptedResponse,
@@ -254,6 +256,75 @@ def _resolve_and_normalize_input(raw_value: str) -> str:
         return canonical_stock_code(resolved)
 
     raise _invalid_analysis_input_error()
+
+
+@router.post(
+    "/quick-technical",
+    response_model=QuickTechnicalAnalysisResponse,
+    summary="Run deterministic technical analysis without an LLM",
+)
+def quick_technical_analysis(request: QuickTechnicalAnalyzeRequest) -> QuickTechnicalAnalysisResponse:
+    """Return existing formula-based trend scores for one or more stocks.
+
+    This deliberately bypasses the task queue, report persistence, news, and
+    LLM calls.  It is intended for quick, repeatable technical screening.
+    """
+    raw_codes = [item.strip() for item in re.split(r"[,，\s]+", request.stock_codes or "") if item.strip()]
+    if not raw_codes:
+        raise _invalid_analysis_input_error()
+    normalized_codes: list[str] = []
+    errors: list[str] = []
+    for raw_code in raw_codes:
+        try:
+            code = _resolve_and_normalize_input(raw_code)
+        except HTTPException:
+            errors.append(f"{raw_code}: 无效代码或未找到名称")
+            continue
+        if code not in normalized_codes:
+            normalized_codes.append(code)
+
+    if not normalized_codes:
+        return QuickTechnicalAnalysisResponse(errors=errors)
+
+    from data_provider.base import DataFetcherManager
+    from src.stock_analyzer import StockTrendAnalyzer
+
+    fetcher = DataFetcherManager()
+    trend_analyzer = StockTrendAnalyzer()
+    results = []
+    for code in normalized_codes:
+        try:
+            daily_data, source = fetcher.get_daily_data(code, days=90)
+            if daily_data is None or daily_data.empty:
+                raise RuntimeError("未获取到足够的日线数据")
+            trend = trend_analyzer.analyze(daily_data, code)
+            quote = fetcher.get_realtime_quote(code)
+            results.append({
+                "code": code,
+                "name": quote.name if quote else None,
+                "data_source": source,
+                "current_price": float(quote.price) if quote and quote.price is not None else float(trend.current_price),
+                "change_pct": float(quote.change_pct) if quote and quote.change_pct is not None else None,
+                "signal_score": int(trend.signal_score),
+                "buy_signal": trend.buy_signal.value,
+                "trend_status": trend.trend_status.value,
+                "ma_alignment": trend.ma_alignment,
+                "ma5": float(trend.ma5),
+                "ma10": float(trend.ma10),
+                "ma20": float(trend.ma20),
+                "ma60": float(trend.ma60),
+                "bias_ma5": float(trend.bias_ma5),
+                "volume_ratio_5d": float(trend.volume_ratio_5d),
+                "macd_signal": trend.macd_signal,
+                "rsi_signal": trend.rsi_signal,
+                "signal_reasons": trend.signal_reasons,
+                "risk_factors": trend.risk_factors,
+            })
+        except Exception as exc:  # keep a batch usable when one code fails
+            logger.warning("[QuickTechnical] %s failed: %s", code, exc)
+            errors.append(f"{code}: {exc}")
+
+    return QuickTechnicalAnalysisResponse(results=results, errors=errors)
 
 
 # ============================================================

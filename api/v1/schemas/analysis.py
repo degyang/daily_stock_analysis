@@ -110,6 +110,45 @@ class AnalyzeRequest(BaseModel):
     })
 
 
+class QuickTechnicalAnalyzeRequest(BaseModel):
+    """Fast, deterministic technical-analysis request without an LLM call."""
+
+    stock_codes: str = Field(
+        ...,
+        min_length=1,
+        max_length=512,
+        description="One stock code or comma-separated stock codes",
+        json_schema_extra={"example": "600519,000858,HK00700"},
+    )
+
+
+class QuickTechnicalResult(BaseModel):
+    code: str
+    name: Optional[str] = None
+    data_source: str
+    current_price: Optional[float] = None
+    change_pct: Optional[float] = None
+    signal_score: int
+    buy_signal: str
+    trend_status: str
+    ma_alignment: str
+    ma5: float
+    ma10: float
+    ma20: float
+    ma60: float
+    bias_ma5: float
+    volume_ratio_5d: float
+    macd_signal: str
+    rsi_signal: str
+    signal_reasons: List[str] = Field(default_factory=list)
+    risk_factors: List[str] = Field(default_factory=list)
+
+
+class QuickTechnicalAnalysisResponse(BaseModel):
+    results: List[QuickTechnicalResult] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+
+
 class MarketReviewRequest(BaseModel):
     """Market review trigger parameters."""
 

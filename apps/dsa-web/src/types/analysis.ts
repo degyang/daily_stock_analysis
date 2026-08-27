@@ -25,6 +25,33 @@ export interface AnalysisRequest {
   reportLanguage?: ReportLanguage;
 }
 
+export interface QuickTechnicalResult {
+  code: string;
+  name?: string | null;
+  dataSource: string;
+  currentPrice?: number | null;
+  changePct?: number | null;
+  signalScore: number;
+  buySignal: string;
+  trendStatus: string;
+  maAlignment: string;
+  ma5: number;
+  ma10: number;
+  ma20: number;
+  ma60: number;
+  biasMa5: number;
+  volumeRatio5d: number;
+  macdSignal: string;
+  rsiSignal: string;
+  signalReasons: string[];
+  riskFactors: string[];
+}
+
+export interface QuickTechnicalAnalysisResponse {
+  results: QuickTechnicalResult[];
+  errors: string[];
+}
+
 export interface MarketReviewRequest {
   sendNotification?: boolean;
   reportLanguage?: ReportLanguage;

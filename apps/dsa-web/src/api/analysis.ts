@@ -2,6 +2,7 @@ import apiClient from './index';
 import { toCamelCase } from './utils';
 import type {
   AnalysisRequest,
+  QuickTechnicalAnalysisResponse,
   AnalysisResult,
   AnalyzeResponse,
   AnalyzeAsyncResponse,
@@ -17,6 +18,14 @@ import { serializeMarketReviewRegions } from '../utils/marketReviewRegion';
 // ============ API Interfaces ============
 
 export const analysisApi = {
+  quickTechnical: async (stockCodes: string): Promise<QuickTechnicalAnalysisResponse> => {
+    const response = await apiClient.post<Record<string, unknown>>(
+      '/api/v1/analysis/quick-technical',
+      { stock_codes: stockCodes }
+    );
+    return toCamelCase<QuickTechnicalAnalysisResponse>(response.data);
+  },
+
   /**
    * Trigger stock analysis.
    * @param data Analysis request payload
