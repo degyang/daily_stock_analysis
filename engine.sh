@@ -9,7 +9,10 @@ LOG_FILE="$PROJECT_DIR/.engine.log"
 # Project-specific configuration, verified from README.md and main.py.
 SERVICE_KIND="web"
 WEBUI_HOST="${ENGINE_WEBUI_HOST:-127.0.0.1}"
-WEBUI_PORT="${ENGINE_WEBUI_PORT:-8000}"
+# Keep the local engine isolated from a pre-existing service that commonly
+# occupies 8000 in this workstation. Override with ENGINE_WEBUI_PORT when a
+# different binding is required.
+WEBUI_PORT="${ENGINE_WEBUI_PORT:-8001}"
 SETUP_COMMAND=("$PROJECT_DIR/.venv/bin/python" -m pip install -r "$PROJECT_DIR/requirements.txt")
 START_COMMAND=("$PROJECT_DIR/.venv/bin/python" "$PROJECT_DIR/main.py" --webui-only --host "$WEBUI_HOST" --port "$WEBUI_PORT")
 HEALTHCHECK_URL="http://${WEBUI_HOST}:${WEBUI_PORT}/api/health"
