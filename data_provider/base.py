@@ -629,6 +629,7 @@ class DataFetcherManager:
         "FutuFetcher": {"hk"},
         "FinnhubFetcher": {"us"},
         "AlphaVantageFetcher": {"us"},
+        "GlobalStockToolboxFetcher": {"hk", "us"},
     }
     _daily_source_health = CircuitBreaker(failure_threshold=3, cooldown_seconds=300.0)
     _CN_INDEX_DAILY_SOURCE_ORDER = (
@@ -1608,6 +1609,12 @@ class DataFetcherManager:
         from .longbridge_fetcher import LongbridgeFetcher
         from .futu_fetcher import FutuFetcher
         config = get_config()
+        toolbox_fetchers: List[BaseFetcher] = []
+        if getattr(config, "enable_toolbox_data_sources", False):
+            from .astock_toolbox_fetcher import AStockToolboxFetcher
+            from .global_stock_toolbox_fetcher import GlobalStockToolboxFetcher
+            toolbox_fetchers.append(AStockToolboxFetcher())
+            toolbox_fetchers.append(GlobalStockToolboxFetcher())
         # 创建所有数据源实例（优先级在各 Fetcher 的 __init__ 中确定）
         efinance = EfinanceFetcher()
         tencent = TencentFetcher()
@@ -1665,6 +1672,7 @@ class DataFetcherManager:
         self._ensure_concurrency_guards()
         with self._fetchers_lock:
             self._fetchers = [
+                *toolbox_fetchers,
                 efinance,
                 akshare,
                 pytdx,
@@ -1720,6 +1728,7 @@ class DataFetcherManager:
             DataFetchError: 非指数代码的所有数据源都失败时抛出
         """
         from .us_index_mapping import is_us_index_code, is_us_stock_code
+        from src.config import get_config
 
         raw_stock_code = (stock_code or "").strip()
         target = parse_analysis_target(raw_stock_code)
@@ -1752,6 +1761,7 @@ class DataFetcherManager:
         is_jp = (not is_us) and (not is_hk) and _is_jp_market(stock_code)
         is_kr = (not is_us) and (not is_hk) and _is_kr_market(stock_code)
         is_tw = (not is_us) and (not is_hk) and _is_tw_market(stock_code)
+
         market = "us" if is_us else "hk" if is_hk else "jp" if is_jp else "kr" if is_kr else "tw" if is_tw else "cn"
         if market != "cn":
             fetchers = self._filter_daily_fetchers_for_market(fetchers, market)
@@ -1768,6 +1778,19 @@ class DataFetcherManager:
         # Failover chain: Finnhub(P2) -> AlphaVantage(P3) -> Yfinance(P4) -> Longbridge(P5)
         # When Longbridge preferred: Longbridge -> Finnhub -> AlphaVantage -> Yfinance
         if is_us:
+            if getattr(get_config(), "enable_toolbox_data_sources", False):
+                toolbox_fetcher = self._get_fetcher_by_name(
+                    "GlobalStockToolboxFetcher", capability="daily_data"
+                )
+                if toolbox_fetcher is not None:
+                    try:
+                        data = self._call_fetcher_method(
+                            toolbox_fetcher, "get_daily_data", stock_code, start_date, end_date
+                        )
+                        if data is not None and not data.empty:
+                            return data, toolbox_fetcher.name
+                    except Exception as exc:
+                        logger.info("[日线] %s global toolbox 失败，回退原链路: %s", stock_code, exc)
             prefer_lb = self._longbridge_preferred(capability="daily_data") and not is_us_index
             if is_us_index:
                 # 指数始终 YFinance 首选（Longbridge 不提供指数K线）
@@ -2232,6 +2255,18 @@ class DataFetcherManager:
         is_kr = (not is_us) and (not is_hk) and _is_kr_market(stock_code)
         is_tw = (not is_us) and (not is_hk) and _is_tw_market(stock_code)
 
+        if getattr(config, "enable_toolbox_data_sources", False) and not any(
+            (is_us, is_hk, is_jp, is_kr, is_tw)
+        ):
+            toolbox_quote = self._try_fetcher_quote(stock_code, "AStockToolboxFetcher")
+            if toolbox_quote is not None:
+                logger.info("[实时行情] %s 成功获取 (来源: AStockToolboxFetcher)", stock_code)
+                return self._enrich_realtime_quote(
+                    toolbox_quote,
+                    realtime_cache_ttl=getattr(config, "realtime_cache_ttl", None),
+                )
+            logger.info("[实时行情] %s toolbox 不可用，回退既有数据源", stock_code)
+
         if is_jp or is_kr or is_tw:
             market_label = "日股" if is_jp else "韩股" if is_kr else "台股"
             quote = self._try_fetcher_quote(stock_code, "YfinanceFetcher")
@@ -2246,6 +2281,15 @@ class DataFetcherManager:
             return None
 
         if is_us or is_hk:
+            if getattr(config, "enable_toolbox_data_sources", False):
+                toolbox_quote = self._try_fetcher_quote(stock_code, "GlobalStockToolboxFetcher")
+                if toolbox_quote is not None:
+                    logger.info("[实时行情] %s 成功获取 (来源: GlobalStockToolboxFetcher)", stock_code)
+                    return self._enrich_realtime_quote(
+                        toolbox_quote,
+                        realtime_cache_ttl=getattr(config, "realtime_cache_ttl", None),
+                    )
+                logger.info("[实时行情] %s global toolbox 不可用，回退既有数据源", stock_code)
             prefer_lb = self._longbridge_preferred() and not is_us_index
             if is_us:
                 primary_src = "LongbridgeFetcher" if prefer_lb else "YfinanceFetcher"
