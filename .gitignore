@@ -89,3 +89,7 @@ static/
 /apps/dsa-desktop/node_modules/
 /node_modules/
 docs/specs/
+
+# Local-only data toolboxes. Developers link these to separately maintained
+# repositories; the links and their checked-out revisions are not part of DSA.
+/third_party/
