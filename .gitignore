@@ -44,6 +44,7 @@ venv/
 ENV/
 env/
 .venv/
+.engine.pid
 
 # IDE
 .idea/
@@ -93,3 +94,7 @@ docs/specs/
 # Local-only data toolboxes. Developers link these to separately maintained
 # repositories; the links and their checked-out revisions are not part of DSA.
 /third_party/
+
+# Local WebUI engine runtime state
+.engine.pid
+.engine.log
