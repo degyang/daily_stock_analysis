@@ -3734,6 +3734,19 @@ class DataFetcherManager:
             "total_mv": getattr(quote_payload, "total_mv", None) if quote_payload else None,
             "circ_mv": getattr(quote_payload, "circ_mv", None) if quote_payload else None,
         }
+        valuation_provider = getattr(getattr(quote_payload, "source", None), "value", None) or "realtime_quote"
+        if getattr(config, "enable_toolbox_data_sources", False) and market == "cn":
+            toolbox_fetcher = self._get_fetcher_by_name("AStockToolboxFetcher", capability="fundamentals")
+            if toolbox_fetcher is not None:
+                try:
+                    toolbox_info = self._call_fetcher_method(toolbox_fetcher, "get_company_info", stock_code)
+                    if isinstance(toolbox_info, dict) and toolbox_info:
+                        for target, source in (("total_mv", "mcap"), ("circ_mv", "float_mcap")):
+                            if valuation_payload.get(target) is None and toolbox_info.get(source) is not None:
+                                valuation_payload[target] = toolbox_info[source]
+                        valuation_provider = "a_stock_toolbox"
+                except Exception as exc:
+                    logger.info("[基本面] %s toolbox 公司资料失败，保留现有结果: %s", stock_code, exc)
         valuation_status = self._infer_block_status(
             valuation_payload,
             "partial" if quote_payload is not None else "not_supported",
@@ -3744,7 +3757,11 @@ class DataFetcherManager:
             valuation_status,
             valuation_payload,
             self._normalize_source_chain(
-                [{"provider": "realtime_quote", "result": valuation_status, "duration_ms": valuation_ms}],
+                [{
+                    "provider": valuation_provider,
+                    "result": valuation_status,
+                    "duration_ms": valuation_ms,
+                }],
                 "realtime_quote",
                 valuation_status,
                 valuation_ms,

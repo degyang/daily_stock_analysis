@@ -8,6 +8,18 @@
 - [架构、路由与数据契约](architecture.md)
 - [实施和验证计划](implementation-plan.md)
 
+## 分阶段交付基线
+
+每个阶段对应一个独立 PR，只有其需求、设计和验收文档全部满足后才进入下一阶段：
+
+| 阶段 / PR | 需求 | 设计 | 验收 |
+| --- | --- | --- | --- |
+| Phase 0 / #1 | [requirements](requirements/phase-0.md) | [design](design/phase-0.md) | [acceptance](acceptance/phase-0.md) |
+| Phase 1 / #2 | [requirements](requirements/phase-1.md) | [design](design/phase-1.md) | [acceptance](acceptance/phase-1.md) |
+| Phase 2 / #3 | [requirements](requirements/phase-2.md) | [design](design/phase-2.md) | [acceptance](acceptance/phase-2.md) |
+| Phase 3 / #4 | [requirements](requirements/phase-3.md) | [design](design/phase-3.md) | [acceptance](acceptance/phase-3.md) |
+| Phase 4 / #5 | [requirements](requirements/phase-4.md) | [design](design/phase-4.md) | [acceptance](acceptance/phase-4.md) |
+
 ## 范围
 
 | 市场或能力 | 开关开启后的首选 | 原 DSA 数据源的角色 |
