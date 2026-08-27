@@ -100,6 +100,8 @@ class RealtimeSource(Enum):
     TUSHARE = "tushare"             # Tushare Pro
     TICKFLOW = "tickflow"           # TickFlow
     TENCENT = "tencent"             # 腾讯直连
+    ASTOCK_TOOLBOX = "a_stock_toolbox"
+    GLOBAL_STOCK_TOOLBOX = "global_stock_toolbox"
     SINA = "sina"                   # 新浪直连
     STOOQ = "stooq"                 # Stooq 美股兜底
     LONGBRIDGE = "longbridge"       # 长桥（美股/港股兜底）
