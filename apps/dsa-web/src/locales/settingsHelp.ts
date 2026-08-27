@@ -316,6 +316,14 @@ const settingsHelpZhCN: SettingsHelpMap = {
     impact: ['影响 TickFlow 批量预取的请求次数和单次请求压力。'],
     notes: ['该配置仅影响 TickFlow 批量路径。'],
   },
+  'settings.data_source.toolbox_data_sources': {
+    title: '本地 Toolbox 数据源',
+    summary: '发现本机链接的 a-stock-data 与 global-stock-data，为后续主数据源适配做准备。',
+    usage: '默认关闭。开启后，DSA 从项目根目录的 third_party/ 检查两个本地链接；不要填写绝对路径。',
+    valueNotes: ['链接缺失、失效或不可读时会记录诊断并继续现有 DSA 数据源。', 'Phase 1 只做发现与诊断，不改变既有行情或基本面请求的实际路由。'],
+    impact: ['影响本地 toolbox 可用性诊断；不会删除或禁用任何现有数据源。'],
+    notes: ['运行时 adapter 将在后续阶段按市场和能力逐项接入。'],
+  },
   'settings.data_source.stock_index_remote': {
     title: '股票索引远程更新',
     summary: '从 GitHub main 分支获取最新股票自动补全索引，并缓存到本地。',
@@ -1546,6 +1554,14 @@ const settingsHelpEnUS: SettingsHelpMap = {
     valueNotes: ['Very large batches may hit plan or server limits; the default is usually appropriate.'],
     impact: ['Affects request count and per-request pressure for TickFlow batch prefetch.'],
     notes: ['This setting only affects TickFlow batch paths.'],
+  },
+  'settings.data_source.toolbox_data_sources': {
+    title: 'Local Toolbox Data Sources',
+    summary: 'Discovers locally linked a-stock-data and global-stock-data repositories for future primary-source adapters.',
+    usage: 'Disabled by default. When enabled, DSA checks both links below third_party/ at the project root; do not enter absolute paths.',
+    valueNotes: ['Missing, broken, or unreadable links record diagnostics and keep existing DSA providers active.', 'Phase 1 only adds discovery and diagnostics; it does not change live quote or fundamental-data routing.'],
+    impact: ['Affects local toolbox availability diagnostics and does not remove or disable existing providers.'],
+    notes: ['Runtime adapters will be introduced capability by capability in later phases.'],
   },
   'settings.data_source.FUTU_OPEND_HOST': {
     title: 'Futu OpenD Host',

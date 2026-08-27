@@ -680,6 +680,56 @@ class DataFetcherManager:
         self._fundamental_cache_lock = RLock()
         self._fundamental_timeout_worker_limit = 8
         self._fundamental_timeout_slots = BoundedSemaphore(self._fundamental_timeout_worker_limit)
+        self._toolbox_discovery = self._discover_toolbox_sources()
+
+    @staticmethod
+    def _discover_toolbox_sources():
+        """Discover locally linked toolboxes without changing existing routing.
+
+        Phase 1 only establishes the opt-in configuration and observable local
+        prerequisites.  Later adapters consume this discovery result; until
+        then every data request continues through the existing DSA fetchers.
+        """
+
+        from src.config import get_config
+
+        config = get_config()
+        if not getattr(config, "enable_toolbox_data_sources", False):
+            return None
+
+        from .toolbox_paths import discover_toolbox_paths
+
+        discovery = discover_toolbox_paths()
+        if discovery.is_complete:
+            logger.info("[Toolbox] local sources discovered: %s", discovery.summary())
+            record_provider_run(
+                data_type="toolbox_discovery",
+                provider="LocalToolboxes",
+                operation="discover",
+                success=True,
+                record_count=len(discovery.available_names),
+            )
+        else:
+            logger.warning(
+                "[Toolbox] requested but unavailable; existing DSA providers remain active: %s",
+                discovery.summary(),
+            )
+            record_provider_run(
+                data_type="toolbox_discovery",
+                provider="LocalToolboxes",
+                operation="discover",
+                success=False,
+                error_type="ToolboxUnavailable",
+                error_message=discovery.summary(),
+                fallback_to="existing_dsa_fetchers",
+            )
+        return discovery
+
+    @property
+    def toolbox_discovery(self):
+        """Return local toolbox availability for diagnostics and future adapters."""
+
+        return self._toolbox_discovery
 
     def _ensure_concurrency_guards(self) -> None:
         """Lazily initialize thread-safety primitives for test scaffolds using __new__."""

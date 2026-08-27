@@ -1209,6 +1209,32 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         ],
         "warning_codes": [],
     },
+    "ENABLE_TOOLBOX_DATA_SOURCES": {
+        "title": "Enable Local Toolbox Data Sources",
+        "description": "Discover local a-stock-data and global-stock-data toolboxes. Disabled by default; missing links fail open to existing DSA providers.",
+        "category": "data_source",
+        "data_type": "boolean",
+        "ui_control": "switch",
+        "is_sensitive": False,
+        "is_required": False,
+        "is_editable": True,
+        "default_value": "false",
+        "options": [],
+        "validation": {},
+        "display_order": 24,
+        "help_key": "settings.data_source.toolbox_data_sources",
+        "examples": [
+            "ENABLE_TOOLBOX_DATA_SOURCES=true",
+            "ENABLE_TOOLBOX_DATA_SOURCES=false",
+        ],
+        "docs": [
+            {
+                "label": "Toolbox 数据源集成",
+                "href": "https://github.com/degyang/daily_stock_analysis/blob/main/docs/toolbox-data-sources/README.md",
+            },
+        ],
+        "warning_codes": ["local_toolbox_required"],
+    },
     "ENABLE_CHIP_DISTRIBUTION": {
         "title": "Enable Chip Distribution",
         "description": "Enable chip distribution analysis. May be unstable; recommended to disable on cloud deployments.",

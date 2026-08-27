@@ -904,3 +904,21 @@ class TestFutuFieldsRegistered(unittest.TestCase):
             for field in category["fields"]
         }
         self.assertTrue({"FUTU_OPEND_HOST", "FUTU_OPEND_PORT", "FUTU_HK_REALTIME_SOURCE_PRIORITY"} <= keys)
+
+
+class TestToolboxDataSourceFieldRegistered(unittest.TestCase):
+    def test_toolbox_data_source_switch_is_visible_and_disabled_by_default(self):
+        field = get_field_definition("ENABLE_TOOLBOX_DATA_SOURCES")
+        self.assertEqual(field["category"], "data_source")
+        self.assertEqual(field["data_type"], "boolean")
+        self.assertEqual(field["ui_control"], "switch")
+        self.assertEqual(field["default_value"], "false")
+        self.assertEqual(field["help_key"], "settings.data_source.toolbox_data_sources")
+
+    def test_schema_includes_toolbox_data_source_switch(self):
+        keys = {
+            field["key"]
+            for category in build_schema_response()["categories"]
+            for field in category["fields"]
+        }
+        self.assertIn("ENABLE_TOOLBOX_DATA_SOURCES", keys)

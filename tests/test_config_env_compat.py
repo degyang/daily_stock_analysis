@@ -156,6 +156,22 @@ class ConfigEnvCompatibilityTestCase(unittest.TestCase):
             config.realtime_source_priority,
             "tencent,akshare_sina,efinance,akshare_em",
         )
+        self.assertFalse(config.enable_toolbox_data_sources)
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    @patch.object(Config, "_parse_stock_email_groups", return_value=[])
+    def test_load_from_env_enables_local_toolbox_discovery_only_when_requested(
+        self, _mock_parse_stock_email_groups, _mock_parse_litellm_yaml, _mock_setup_env
+    ):
+        with patch.dict(
+            os.environ,
+            {"STOCK_LIST": "600519", "ENABLE_TOOLBOX_DATA_SOURCES": "true"},
+            clear=True,
+        ):
+            config = Config._load_from_env()
+
+        self.assertTrue(config.enable_toolbox_data_sources)
 
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])
