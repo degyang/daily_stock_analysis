@@ -102,7 +102,7 @@ start() {
     # Importing the complete DSA FastAPI application can take longer than a
     # simple port probe on this local environment.  Success remains strictly
     # health-endpoint based, but allow enough time for that one-time startup.
-    for _ in {1..90}; do
+    for _ in {1..150}; do
         if ! is_running; then
             break
         fi
@@ -139,6 +139,14 @@ stop() {
         kill -KILL "$pid"
     fi
     rm -f "$PID_FILE"
+    for _ in {1..50}; do
+        [[ -z "$(listener_pid)" ]] && break
+        sleep 0.1
+    done
+    if [[ -n "$(listener_pid)" ]]; then
+        echo "WebUI process stopped, but port $WEBUI_PORT is still occupied." >&2
+        return 1
+    fi
     echo 'WebUI stopped.'
 }
 
