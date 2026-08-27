@@ -629,6 +629,7 @@ class DataFetcherManager:
         "FutuFetcher": {"hk"},
         "FinnhubFetcher": {"us"},
         "AlphaVantageFetcher": {"us"},
+        "AStockToolboxFetcher": {"cn"},
         "GlobalStockToolboxFetcher": {"hk", "us"},
     }
     _daily_source_health = CircuitBreaker(failure_threshold=3, cooldown_seconds=300.0)
