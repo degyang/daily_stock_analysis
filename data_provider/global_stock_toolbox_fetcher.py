@@ -9,6 +9,7 @@ data contract; richer global capabilities are added by later adapters.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import time
 from typing import Optional
 
 import pandas as pd
@@ -25,6 +26,7 @@ class GlobalStockToolboxFetcher(BaseFetcher):
     priority = -9
     _CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
     _TIMEOUT_SECONDS = 12
+    _MAX_REQUEST_ATTEMPTS = 3
 
     def _fetch_raw_data(self, stock_code: str, start_date: str, end_date: str) -> pd.DataFrame:
         symbol = self._symbol(stock_code)
@@ -85,6 +87,13 @@ class GlobalStockToolboxFetcher(BaseFetcher):
     @classmethod
     def _symbol(cls, stock_code: str) -> str:
         code = (stock_code or "").strip().upper()
+        # DSA accepts concise aliases such as SPX/DJI.  Yahoo's chart API
+        # requires the canonical caret-prefixed symbols for these indexes.
+        from .us_index_mapping import get_us_index_yf_symbol
+
+        index_symbol, _ = get_us_index_yf_symbol(code)
+        if index_symbol:
+            return index_symbol
         if code.startswith("HK") and code[2:].isdigit():
             return f"{str(int(code[2:])).zfill(4)}.HK"
         if code.isdigit() and len(code) in (4, 5):
@@ -94,14 +103,23 @@ class GlobalStockToolboxFetcher(BaseFetcher):
         return ""
 
     def _request_chart(self, symbol: str, params: dict) -> dict:
-        response = requests.get(
-            self._CHART_URL.format(symbol=symbol),
-            params=params,
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=self._TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        return response.json()
+        """Request Yahoo chart data, retrying short-lived upstream disconnects."""
+        last_error: Optional[requests.RequestException] = None
+        for attempt in range(self._MAX_REQUEST_ATTEMPTS):
+            try:
+                response = requests.get(
+                    self._CHART_URL.format(symbol=symbol),
+                    params=params,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    timeout=self._TIMEOUT_SECONDS,
+                )
+                response.raise_for_status()
+                return response.json()
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt + 1 < self._MAX_REQUEST_ATTEMPTS:
+                    time.sleep(0.5 * (attempt + 1))
+        raise DataFetchError(f"global-stock-data request failed for {symbol}: {last_error}") from last_error
 
     @staticmethod
     def _result(payload: dict) -> dict:

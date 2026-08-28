@@ -44,6 +44,10 @@ def test_global_toolbox_hk_symbol_is_normalized_and_chart_rows_are_standardized(
     assert len(df) == 2
 
 
+def test_global_toolbox_converts_dsa_us_index_alias_to_yahoo_symbol():
+    assert GlobalStockToolboxFetcher._symbol("SPX") == "^GSPC"
+
+
 def test_astock_toolbox_company_info_uses_existing_company_schema():
     response = Mock()
     response.raise_for_status = Mock()
