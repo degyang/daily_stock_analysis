@@ -18,6 +18,7 @@ import logging
 import re
 from contextlib import contextmanager
 from datetime import datetime
+from threading import RLock
 from typing import Optional, Generator
 
 import pandas as pd
@@ -40,6 +41,12 @@ from .base import (
 import os
 
 logger = logging.getLogger(__name__)
+
+# Baostock stores its active connection in the module-global
+# ``baostock.common.context.default_socket``.  The complete session must be
+# serialized across fetcher instances so concurrent requests cannot overwrite
+# or close another request's socket.
+_BAOSTOCK_SESSION_LOCK = RLock()
 
 
 def _is_us_code(stock_code: str) -> bool:
@@ -104,30 +111,31 @@ class BaostockFetcher(BaseFetcher):
             with self._baostock_session():
                 # 在这里执行数据查询
         """
-        bs = self._get_baostock()
-        login_result = None
-        
-        try:
-            # 登录 Baostock
-            login_result = bs.login()
-            
-            if login_result.error_code != '0':
-                raise DataFetchError(f"Baostock 登录失败: {login_result.error_msg}")
-            
-            logger.debug("Baostock 登录成功")
-            
-            yield bs
-            
-        finally:
-            # 确保登出，防止连接泄露
+        with _BAOSTOCK_SESSION_LOCK:
+            bs = self._get_baostock()
+            login_result = None
+
             try:
-                logout_result = bs.logout()
-                if logout_result.error_code == '0':
-                    logger.debug("Baostock 登出成功")
-                else:
-                    logger.warning(f"Baostock 登出异常: {logout_result.error_msg}")
-            except Exception as e:
-                logger.warning(f"Baostock 登出时发生错误: {e}")
+                # 登录 Baostock
+                login_result = bs.login()
+
+                if login_result.error_code != '0':
+                    raise DataFetchError(f"Baostock 登录失败: {login_result.error_msg}")
+
+                logger.debug("Baostock 登录成功")
+
+                yield bs
+
+            finally:
+                # 确保登出，防止连接泄露
+                try:
+                    logout_result = bs.logout()
+                    if logout_result.error_code == '0':
+                        logger.debug("Baostock 登出成功")
+                    else:
+                        logger.warning(f"Baostock 登出异常: {logout_result.error_msg}")
+                except Exception as e:
+                    logger.warning(f"Baostock 登出时发生错误: {e}")
     
     def _convert_stock_code(self, stock_code: str) -> str:
         """

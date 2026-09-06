@@ -3,6 +3,8 @@ from unittest.mock import Mock, patch
 from data_provider.astock_toolbox_fetcher import AStockToolboxFetcher
 from data_provider.base import DataFetcherManager
 from data_provider.global_stock_toolbox_fetcher import GlobalStockToolboxFetcher
+import pandas as pd
+
 from data_provider.realtime_types import RealtimeSource, UnifiedRealtimeQuote
 
 
@@ -60,6 +62,32 @@ def test_astock_toolbox_company_info_uses_existing_company_schema():
     assert info["name"] == "贵州茅台"
     assert info["industry"] == "白酒"
     assert info["mcap"] == 100.0
+
+
+def test_astock_toolbox_derives_chip_distribution_from_forward_adjusted_history():
+    history = pd.DataFrame({
+        "date": ["2026-08-24", "2026-08-25", "2026-08-26"],
+        "high": [10.2, 10.7, 11.1],
+        "low": [9.8, 10.1, 10.5],
+        "close": [10.0, 10.5, 10.9],
+        "turn": [2.0, 4.0, 3.0],
+    })
+    fetcher = AStockToolboxFetcher()
+
+    with patch.object(fetcher, "_fetch_chip_history", return_value=history):
+        chip = fetcher.get_chip_distribution("600519")
+
+    assert chip is not None
+    assert chip.source == "a_stock_toolbox_local_cyq"
+    assert chip.date == "2026-08-26"
+    assert 0 <= chip.profit_ratio <= 1
+    assert chip.avg_cost > 0
+    assert chip.cost_90_low <= chip.cost_70_low <= chip.cost_70_high <= chip.cost_90_high
+    assert chip.concentration_90 >= chip.concentration_70 >= 0
+
+
+def test_astock_toolbox_chip_distribution_rejects_bse_codes():
+    assert AStockToolboxFetcher().get_chip_distribution("920748") is None
 
 
 def test_empty_toolbox_quote_falls_back_to_existing_realtime_source():

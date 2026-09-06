@@ -7,7 +7,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import type { QuickTechnicalAnalysisResponse, QuickTechnicalResult } from '../types/analysis';
 
 function scoreClass(score: number): string {
-  if (score >= 70) return 'text-emerald-600 dark:text-emerald-400';
+  if (score >= 70) return 'text-purple-600 dark:text-purple-400';
   if (score >= 55) return 'text-sky-600 dark:text-sky-400';
   if (score >= 40) return 'text-amber-600 dark:text-amber-400';
   return 'text-rose-600 dark:text-rose-400';

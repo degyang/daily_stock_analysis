@@ -7,13 +7,15 @@ DSA, so runtime behaviour never depends on parsing Markdown.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import numpy as np
+import pandas as pd
 import requests
 
-from .base import is_bse_code, normalize_stock_code
-from .realtime_types import RealtimeSource, UnifiedRealtimeQuote, safe_float
+from .base import DataFetchError, is_bse_code, normalize_stock_code
+from .realtime_types import ChipDistribution, RealtimeSource, UnifiedRealtimeQuote, safe_float
 from .tencent_fetcher import TencentFetcher
 
 
@@ -103,6 +105,140 @@ class AStockToolboxFetcher(TencentFetcher):
             "float_mcap": safe_float(data.get("f117")), "list_date": str(data.get("f189") or ""),
             "price": safe_float(data.get("f43")),
         }
+
+    def get_chip_distribution(self, stock_code: str) -> Optional[ChipDistribution]:
+        """Derive A-share chip metrics from forward-adjusted daily bars.
+
+        a-stock-data intentionally computes CYQ locally because Eastmoney has no
+        public chip-distribution endpoint.  Keep that algorithm in this adapter
+        rather than parsing the toolbox Markdown at runtime, and let the manager
+        continue to fall back to existing providers when its inputs are missing.
+        """
+        code = normalize_stock_code(stock_code)
+        if not code.isdigit() or len(code) != 6 or is_bse_code(code):
+            return None
+
+        history = self._fetch_chip_history(code)
+        if history.empty:
+            return None
+        metrics = self._calculate_chip_distribution(history)
+        cost_90_low, cost_90_high = metrics["cost_90"]
+        cost_70_low, cost_70_high = metrics["cost_70"]
+        return ChipDistribution(
+            code=code,
+            date=str(metrics["date"]),
+            source="a_stock_toolbox_local_cyq",
+            profit_ratio=metrics["profit_ratio"],
+            avg_cost=metrics["avg_cost"],
+            cost_90_low=cost_90_low,
+            cost_90_high=cost_90_high,
+            concentration_90=metrics["concentration_90"],
+            cost_70_low=cost_70_low,
+            cost_70_high=cost_70_high,
+            concentration_70=metrics["concentration_70"],
+        )
+
+    @staticmethod
+    def _fetch_chip_history(stock_code: str) -> pd.DataFrame:
+        """Fetch the a-stock-data CYQ input contract from the existing Baostock dependency."""
+        from .baostock_fetcher import BaostockFetcher
+
+        fetcher = BaostockFetcher()
+        end_date = datetime.now(timezone.utc).date()
+        start_date = end_date - timedelta(days=365)
+        with fetcher._baostock_session() as bs:
+            result = bs.query_history_k_data_plus(
+                code=fetcher._convert_stock_code(stock_code),
+                fields="date,high,low,close,turn,tradestatus",
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                frequency="d",
+                adjustflag="2",
+            )
+            if result.error_code != "0":
+                raise DataFetchError(f"Baostock 筹码输入查询失败: {result.error_msg}")
+            rows = []
+            while result.next():
+                rows.append(result.get_row_data())
+
+        if not rows:
+            return pd.DataFrame(columns=["date", "high", "low", "close", "turn"])
+        history = pd.DataFrame(rows, columns=result.fields)
+        if "tradestatus" in history.columns:
+            history = history[history["tradestatus"] == "1"]
+        return history
+
+    @staticmethod
+    def _calculate_chip_distribution(history: pd.DataFrame, grid_size: int = 300) -> dict:
+        """Implement the a-stock-data CYQ decay model using OHLC and turnover."""
+        required_columns = {"date", "high", "low", "close", "turn"}
+        missing_columns = required_columns - set(history.columns)
+        if missing_columns:
+            raise ValueError(f"筹码输入缺少字段: {sorted(missing_columns)}")
+
+        data = history.copy()
+        for column in ("high", "low", "close", "turn"):
+            data[column] = pd.to_numeric(data[column], errors="coerce")
+        data = data.dropna(subset=["date", "high", "low", "close", "turn"])
+        data = data[data["high"] > 0].sort_values("date").reset_index(drop=True)
+        if data.empty:
+            raise ValueError("筹码输入没有有效交易日")
+
+        low, high = float(data["low"].min()), float(data["high"].max())
+        padding = (high - low) * 0.02 or max(low * 0.02, 0.01)
+        grid = np.linspace(low - padding, high + padding, grid_size)
+        chips: Optional[np.ndarray] = None
+
+        for row in data.itertuples(index=False):
+            turnover = min(max(float(row.turn) / 100.0, 0.0), 1.0)
+            weights = AStockToolboxFetcher._triangular_weights(
+                grid, float(row.low), float(row.high),
+                (float(row.high) + float(row.low) + float(row.close)) / 3.0,
+            )
+            if weights.sum() <= 0:
+                continue
+            chips = weights.copy() if chips is None else chips * (1.0 - turnover) + weights * turnover
+
+        if chips is None or chips.sum() <= 0:
+            raise ValueError("无法构建有效筹码分布")
+        chips /= chips.sum()
+        cumulative = np.cumsum(chips)
+
+        def price_at(quantile: float) -> float:
+            return float(np.interp(quantile, cumulative, grid))
+
+        cost_90_low, cost_70_low, cost_70_high, cost_90_high = (
+            price_at(quantile) for quantile in (0.05, 0.15, 0.85, 0.95)
+        )
+        return {
+            "date": data["date"].iloc[-1],
+            "profit_ratio": float(chips[grid <= float(data["close"].iloc[-1])].sum()),
+            "avg_cost": float((grid * chips).sum()),
+            "cost_90": (cost_90_low, cost_90_high),
+            "cost_70": (cost_70_low, cost_70_high),
+            "concentration_90": float((cost_90_high - cost_90_low) / (cost_90_high + cost_90_low)),
+            "concentration_70": float((cost_70_high - cost_70_low) / (cost_70_high + cost_70_low)),
+        }
+
+    @staticmethod
+    def _triangular_weights(grid: np.ndarray, low: float, high: float, average: float) -> np.ndarray:
+        """Return normalized price-grid weights for one trading day."""
+        weights = np.zeros_like(grid)
+        if not np.isfinite([low, high, average]).all() or high < low:
+            return weights
+        if high - low < 1e-9:
+            weights[np.argmin(np.abs(grid - low))] = 1.0
+            return weights
+        average = min(max(average, low), high)
+        left = (grid >= low) & (grid <= average)
+        right = (grid > average) & (grid <= high)
+        weights[left] = (grid[left] - low) / (average - low) if average - low > 1e-9 else 1.0
+        weights[right] = (high - grid[right]) / (high - average) if high - average > 1e-9 else 1.0
+        total = weights.sum()
+        if total > 0:
+            return weights / total
+        weights[np.argmin(np.abs(grid - average))] = 1.0
+        return weights
 
     @staticmethod
     def _symbol(stock_code: str) -> str:

@@ -55,6 +55,8 @@ flowchart TD
 
 `a-stock-data` 使用 OHLC 与换手率推演筹码；DSA 的 AkShare/Tushare 实现可能使用不同来源或时间窗。返回结果必须增加或保留 `source`、`method`、`as_of`，并禁止把两者缓存到相同无版本 key。
 
+当前 `AStockToolboxFetcher` 对沪深 A 股通过 Baostock 获取约一年的前复权日线与换手率，在本地按 a-stock-data 的 CYQ 衰减模型计算筹码结构；Baostock 连接因其进程级 socket 会话在整个“登录、查询、登出”范围内串行化。若日线、换手率或计算结果不可用，`DataFetcherManager` 会继续尝试 AkShare/Tushare。北交所仍使用原有 fallback，因为 Baostock 不支持其筹码计算输入。
+
 ### K 线与复权
 
 通达信 K 线通常为不复权数据。adapter 必须明确 `adjustment`，并在需要跨除权日的分析前应用受支持的复权策略；不得把不复权数据伪装成既有前复权序列。
