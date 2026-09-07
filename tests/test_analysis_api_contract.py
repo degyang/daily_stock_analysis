@@ -28,6 +28,7 @@ try:
     from api.v1.endpoints.analysis import (
         trigger_analysis,
         trigger_market_review,
+        _resolve_quick_technical_input,
         _handle_sync_analysis,
         _build_analysis_report,
         _load_sync_fundamental_sources,
@@ -39,6 +40,7 @@ except Exception:  # pragma: no cover - optional dependency environments
     analysis_endpoint_module = None
     trigger_analysis = None
     trigger_market_review = None
+    _resolve_quick_technical_input = None
     _handle_sync_analysis = None
     _build_analysis_report = None
     _load_sync_fundamental_sources = None
@@ -2933,6 +2935,21 @@ class AnalysisApiContractTestCase(unittest.TestCase):
         self.assertTrue(response.send_notification)
         self.assertEqual(response.task_id, "market-task-omitted")
         task_queue.submit_background_task.assert_called_once()
+
+    def test_quick_technical_input_preserves_shared_stock_resolution(self) -> None:
+        if _resolve_quick_technical_input is None:
+            self.skipTest("fastapi is not installed in this test environment")
+
+        self.assertEqual(_resolve_quick_technical_input("600519.SH"), "600519.SH")
+
+    def test_quick_technical_input_rejects_unsupported_csi_target(self) -> None:
+        if _resolve_quick_technical_input is None:
+            self.skipTest("fastapi is not installed in this test environment")
+
+        with self.assertRaises(Exception) as ctx:
+            _resolve_quick_technical_input("930956.CSI")
+
+        self.assertEqual(getattr(ctx.exception, "status_code", None), 400)
 
     def test_trigger_analysis_rejects_blank_only_stock_inputs(self) -> None:
         if trigger_analysis is None:

@@ -324,6 +324,18 @@ def _resolve_analysis_input(raw_value: str):
     raise _invalid_analysis_input_error()
 
 
+def _resolve_quick_technical_input(raw_value: str) -> str:
+    """Resolve a quick-analysis token through the shared input contract."""
+    entry = _resolve_analysis_input(raw_value)
+    if entry is None:
+        raise _invalid_analysis_input_error()
+
+    code, target = entry
+    if target is not None and target.asset_type == ParseStatus.UNSUPPORTED:
+        raise _invalid_analysis_input_error()
+    return code
+
+
 @router.post(
     "/quick-technical",
     response_model=QuickTechnicalAnalysisResponse,
@@ -342,7 +354,7 @@ def quick_technical_analysis(request: QuickTechnicalAnalyzeRequest) -> QuickTech
     errors: list[str] = []
     for raw_code in raw_codes:
         try:
-            code = _resolve_and_normalize_input(raw_code)
+            code = _resolve_quick_technical_input(raw_code)
         except HTTPException:
             errors.append(f"{raw_code}: 无效代码或未找到名称")
             continue
