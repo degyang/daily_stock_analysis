@@ -12,7 +12,34 @@ export type ExtractFromImageResponse = {
   rawText?: string;
 };
 
+export type ModeSelectionStrategy = {
+  key: string;
+  name: string;
+  description: string;
+  codes: string[];
+};
+
+export type ModeSelectionResponse = {
+  date: string;
+  availableDates: string[];
+  strategies: ModeSelectionStrategy[];
+};
+
 export const stocksApi = {
+  async getModeSelections(date?: string): Promise<ModeSelectionResponse> {
+    const response = await apiClient.get('/api/v1/stocks/mode-selections', { params: date ? { date } : undefined });
+    const data = response.data as {
+      date: string;
+      available_dates?: string[];
+      strategies?: ModeSelectionStrategy[];
+    };
+    return {
+      date: data.date,
+      availableDates: data.available_dates ?? [],
+      strategies: data.strategies ?? [],
+    };
+  },
+
   async extractFromImage(file: File): Promise<ExtractFromImageResponse> {
     const formData = new FormData();
     formData.append('file', file);

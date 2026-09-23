@@ -4,6 +4,7 @@ import { UiLanguageProvider } from '../../../contexts/UiLanguageContext';
 import { UI_LANGUAGE_STORAGE_KEY } from '../../../utils/uiLanguage';
 import { HomeStockWorkspace } from '../HomeStockWorkspace';
 import type { HomeWatchlistRow, HomeWorkspaceTab } from '../HomeStockWorkspace';
+import type { StockBarItem } from '../../../types/analysis';
 
 function renderWorkspace({
   watchlistRows,
@@ -11,15 +12,18 @@ function renderWorkspace({
   selectedStockCode,
   selectedAssetType,
   activeTab = 'watchlist',
+  todayItems = [],
 }: {
   watchlistRows: HomeWatchlistRow[];
   selectedRecordId?: number;
   selectedStockCode?: string;
   selectedAssetType?: 'stock' | 'index' | null;
   activeTab?: HomeWorkspaceTab;
+  todayItems?: StockBarItem[];
 }) {
   const onHistoryItemClick = vi.fn();
   const onRemoveFromWatchlist = vi.fn().mockResolvedValue(undefined);
+  const onDeleteStock = vi.fn().mockResolvedValue(undefined);
   window.localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, 'zh');
 
   const renderView = (rows: HomeWatchlistRow[]) => (
@@ -37,7 +41,7 @@ function renderWorkspace({
         onAnalyzeWatchlist={vi.fn().mockResolvedValue(undefined)}
         isBatchAnalyzing={false}
         batchStatus={null}
-        todayItems={[]}
+        todayItems={todayItems}
         isLoadingTodayItems={false}
         todayLoadError={false}
         watchlistAnalyzedTodayCount={rows.filter((row) => row.analyzedToday).length}
@@ -47,6 +51,7 @@ function renderWorkspace({
         selectedAssetType={selectedAssetType ?? null}
         selectedRecordId={selectedRecordId}
         onHistoryItemClick={onHistoryItemClick}
+        onDeleteStock={onDeleteStock}
       />
     </UiLanguageProvider>
   );
@@ -55,6 +60,7 @@ function renderWorkspace({
   return {
     onHistoryItemClick,
     onRemoveFromWatchlist,
+    onDeleteStock,
     rerenderWatchlistRows: (rows: HomeWatchlistRow[]) => view.rerender(renderView(rows)),
   };
 }
@@ -79,6 +85,27 @@ describe('HomeStockWorkspace', () => {
     expect(stockBar).toHaveClass('glass-card', 'home-stock-scroll-shell', 'min-h-0');
     expect(stockBar).not.toHaveClass('overflow-hidden');
     expect(screen.getByTestId('home-stock-bar-scroll')).toHaveClass('touch-pan-y');
+  });
+
+  it('deletes a Today item without opening its report', () => {
+    const { onDeleteStock, onHistoryItemClick } = renderWorkspace({
+      watchlistRows: [],
+      activeTab: 'today',
+      todayItems: [{
+        id: 21,
+        stockCode: 'AAPL',
+        stockName: 'Apple',
+        sentimentScore: 72,
+        operationAdvice: '观察',
+        analysisCount: 1,
+        lastAnalysisTime: '2026-03-19T09:00:00+08:00',
+      }],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '删除' }));
+
+    expect(onDeleteStock).toHaveBeenCalledWith('AAPL');
+    expect(onHistoryItemClick).not.toHaveBeenCalled();
   });
 
   it('opens the latest watchlist detail from a native button and keeps the row selected', () => {

@@ -241,25 +241,48 @@ const WatchlistRowItem: React.FC<{
   );
 };
 
-const TodayItem: React.FC<{ item: StockBarItem; onClick: (recordId: number) => void }> = ({ item, onClick }) => {
+const TodayItem: React.FC<{
+  item: StockBarItem;
+  onClick: (recordId: number) => void;
+  onDelete?: (stockCode: string) => Promise<void> | void;
+  isDeleting: boolean;
+}> = ({ item, onClick, onDelete, isDeleting }) => {
+  const { t } = useUiLanguage();
   const stockName = item.stockName || item.stockCode;
 
   return (
-    <button
-      type="button"
-      className="home-subpanel grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 text-left"
-      onClick={() => onClick(item.id)}
-    >
-      <div className="min-w-0">
-        <span className="block truncate text-sm font-semibold text-foreground">
-          {truncateStockName(stockName)}
-        </span>
-        <span className="mt-1 block truncate font-mono text-[11px] text-secondary-text">
-          {item.stockCode}
-        </span>
+    <div className="home-subpanel group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 text-left">
+      <button
+        type="button"
+        className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/30"
+        onClick={() => onClick(item.id)}
+      >
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-foreground">
+            {truncateStockName(stockName)}
+          </span>
+          <span className="mt-1 block truncate font-mono text-[11px] text-secondary-text">
+            {item.stockCode}
+          </span>
+        </div>
+      </button>
+      <div className="flex shrink-0 items-center gap-1" data-testid="today-card-actions">
+        <ScoreBadge item={item} />
+        {onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xsm"
+            className="h-6 w-6 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+            disabled={isDeleting}
+            aria-label={t('common.delete')}
+            onClick={() => void onDelete(item.stockCode)}
+          >
+            <Trash2 className="h-3.5 w-3.5 text-danger" aria-hidden="true" />
+          </Button>
+        ) : null}
       </div>
-      <ScoreBadge item={item} />
-    </button>
+    </div>
   );
 };
 
@@ -593,7 +616,13 @@ export const HomeStockWorkspace: React.FC<HomeStockWorkspaceProps> = ({
               {t('watchlist.todaySortHint')}
             </div>
             {todayItems.map((item) => (
-              <TodayItem key={`${item.stockCode}-${item.id}`} item={item} onClick={onHistoryItemClick} />
+              <TodayItem
+                key={`${item.stockCode}-${item.id}`}
+                item={item}
+                onClick={onHistoryItemClick}
+                onDelete={onDeleteStock}
+                isDeleting={isDeleting}
+              />
             ))}
           </div>
         )}

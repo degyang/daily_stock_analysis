@@ -1842,6 +1842,81 @@ describe('HomePage', () => {
     ).toBeTruthy();
   });
 
+  it('ranks each stock by its latest analysis today instead of its historical high score', async () => {
+    const todayInShanghai = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+    const rangeStart = new Date(`${todayInShanghai}T12:00:00Z`);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - 1);
+    const rangeEnd = new Date(`${todayInShanghai}T12:00:00Z`);
+    rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 1);
+    const startDate = rangeStart.toISOString().slice(0, 10);
+    const endDate = rangeEnd.toISOString().slice(0, 10);
+
+    vi.mocked(historyApi.getList).mockImplementation((params: {
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      limit?: number;
+    } = {}) => {
+      if (params.startDate === startDate && params.endDate === endDate) {
+        return Promise.resolve({
+          total: 3,
+          page: 1,
+          limit: 100,
+          items: [
+            {
+              id: 101,
+              queryId: 'q-apple-earlier',
+              stockCode: 'AAPL',
+              stockName: 'Apple',
+              reportType: 'detailed' as const,
+              sentimentScore: 95,
+              operationAdvice: '买入',
+              createdAt: `${todayInShanghai}T09:00:00`,
+            },
+            {
+              id: 102,
+              queryId: 'q-apple-latest',
+              stockCode: 'AAPL',
+              stockName: 'Apple',
+              reportType: 'detailed' as const,
+              sentimentScore: 35,
+              operationAdvice: '减仓',
+              createdAt: `${todayInShanghai}T11:00:00`,
+            },
+            {
+              id: 103,
+              queryId: 'q-google-latest',
+              stockCode: 'GOOGL',
+              stockName: 'Google',
+              reportType: 'detailed' as const,
+              sentimentScore: 70,
+              operationAdvice: '观察',
+              createdAt: `${todayInShanghai}T10:00:00`,
+            },
+          ],
+        });
+      }
+
+      return Promise.resolve({ total: 0, page: 1, limit: 20, items: [] });
+    });
+
+    render(
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '今日' }));
+
+    const [googleButton] = await screen.findAllByRole('button', { name: /Google/ });
+    const appleButtons = screen.getAllByRole('button', { name: /Apple/ });
+    expect(appleButtons).toHaveLength(1);
+    expect(screen.getByText('减仓 35')).toBeInTheDocument();
+    expect(
+      googleButton.compareDocumentPosition(appleButtons[0]) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('keeps the task panel collapsed after task stream updates', async () => {
     window.sessionStorage.setItem('dsa.home.taskPanelCollapsed', 'false');
     vi.mocked(historyApi.getList).mockResolvedValue({

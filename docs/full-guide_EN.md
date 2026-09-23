@@ -1472,6 +1472,8 @@ Backtesting triggers automatically after the daily analysis flow completes (non-
 
 The WebUI and FastAPI API share the same service process. After startup, use the browser workspace for configuration management, manual analysis, task progress, historical reports, backtesting, portfolio management, and smart import. Authentication, cloud-server access, and API usage details are covered below.
 
+“Quick Analysis → Mode Selection” reads date-partitioned CSV exports from Sequoia-X. Set `SEQUOIA_OUTPUT_DIR` to its `outputs` root, which must contain `YYYY-MM-DD/<strategy class>.csv`. The page opens the latest available date by default and supports calendar-based date switching. Each of the seven strategies has its own tab; CSV files must contain a `symbol` column. Codes appear immediately, while per-row or bulk refresh fills in the same quick technical fields used by the watchlist. The plus button after Refresh adds a code to the watchlist; codes already in the watchlist show a minus button for removal. A missing or invalid directory affects only this page.
+
 ### FastAPI API Service
 
 FastAPI provides RESTful API service for configuration management and triggering analysis.

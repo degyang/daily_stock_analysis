@@ -96,6 +96,23 @@ class ExtractFromImageResponse(BaseModel):
     raw_text: Optional[str] = Field(None, description="原始 LLM 响应（调试用）")
 
 
+class ModeSelectionStrategy(BaseModel):
+    """A Sequoia-X strategy and its selected stock codes."""
+
+    key: str
+    name: str
+    description: str
+    codes: List[str] = Field(default_factory=list)
+
+
+class ModeSelectionResponse(BaseModel):
+    """Mode selections for one available output date."""
+
+    date: str
+    available_dates: List[str] = Field(default_factory=list)
+    strategies: List[ModeSelectionStrategy] = Field(default_factory=list)
+
+
 class StockHistoryResponse(BaseModel):
     """股票历史行情响应"""
     

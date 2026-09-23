@@ -857,6 +857,7 @@ const HomePage: React.FC = () => {
       await historyApi.deleteByCode(stockCode);
       await refreshStockBar();
       await refreshHistory(true);
+      setTodayAnalysisRefreshVersion((version) => version + 1);
       if (stockCode === 'MARKET') {
         await refreshMarketReviewHistory(false);
       }
@@ -1234,7 +1235,7 @@ const HomePage: React.FC = () => {
   );
 
   const todayAnalysisItems = useMemo(() => {
-    const itemsById = new Map<number, StockBarItem>();
+    const latestItemByStock = new Map<string, StockBarItem>();
     const addItem = (item: StockBarItem) => {
       if (item.stockCode === 'MARKET' || item.reportType === 'market_review') {
         return;
@@ -1242,14 +1243,28 @@ const HomePage: React.FC = () => {
       if (getShanghaiDateKey(item.lastAnalysisTime) !== todayDateKey) {
         return;
       }
-      itemsById.set(item.id, item);
+      // A stock can be analyzed more than once in a day. The Today workspace
+      // is a per-stock ranking, so retain its newest analysis rather than
+      // letting an earlier, higher score win the ranking.
+      const stockKey = getStockCodeKey(item.stockCode, item.assetType) || `record-${item.id}`;
+      const currentItem = latestItemByStock.get(stockKey);
+      if (
+        !currentItem
+        || getShanghaiTimeValue(item.lastAnalysisTime) > getShanghaiTimeValue(currentItem.lastAnalysisTime)
+        || (
+          getShanghaiTimeValue(item.lastAnalysisTime) === getShanghaiTimeValue(currentItem.lastAnalysisTime)
+          && item.id > currentItem.id
+        )
+      ) {
+        latestItemByStock.set(stockKey, item);
+      }
     };
 
     for (const item of todayHistoryItems) {
       addItem(item);
     }
 
-    return Array.from(itemsById.values())
+    return Array.from(latestItemByStock.values())
       .sort((left, right) => {
         const leftScore = typeof left.sentimentScore === 'number' ? left.sentimentScore : -1;
         const rightScore = typeof right.sentimentScore === 'number' ? right.sentimentScore : -1;

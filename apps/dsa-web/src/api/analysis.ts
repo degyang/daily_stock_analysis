@@ -21,7 +21,8 @@ export const analysisApi = {
   quickTechnical: async (stockCodes: string): Promise<QuickTechnicalAnalysisResponse> => {
     const response = await apiClient.post<Record<string, unknown>>(
       '/api/v1/analysis/quick-technical',
-      { stock_codes: stockCodes }
+      { stock_codes: stockCodes },
+      { timeout: 120000 },
     );
     return toCamelCase<QuickTechnicalAnalysisResponse>(response.data);
   },

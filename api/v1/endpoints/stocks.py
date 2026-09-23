@@ -23,6 +23,7 @@ from api.v1.schemas.stocks import (
     ExtractFromImageResponse,
     ExtractItem,
     KLineData,
+    ModeSelectionResponse,
     StockHistoryResponse,
     StockProfileResponse,
     StockQuote,
@@ -43,6 +44,7 @@ from src.services.stock_service import StockService
 from src.services.stock_profile_service import InvalidStockProfileCode, StockProfileService
 from src.services.run_diagnostics import sanitize_diagnostic_text
 from src.services.stock_list_parser import split_stock_list
+from src.services.mode_selection_service import ModeSelectionError, load_mode_selection
 from src.services.system_config_service import SystemConfigService
 from data_provider.base import normalize_stock_code
 
@@ -52,6 +54,35 @@ router = APIRouter()
 
 # 须在 /{stock_code} 路由之前定义
 ALLOWED_MIME_STR = ", ".join(ALLOWED_MIME)
+
+
+@router.get(
+    "/mode-selections",
+    response_model=ModeSelectionResponse,
+    summary="读取模式选股结果",
+    description="按日期读取 SEQUOIA_OUTPUT_DIR 下 7 个固定策略 CSV 的 symbol 列。",
+)
+def get_mode_selections(
+    date: Optional[str] = Query(None, description="结果日期，格式 YYYY-MM-DD；留空读取最新日期"),
+) -> ModeSelectionResponse:
+    try:
+        return ModeSelectionResponse.model_validate(load_mode_selection(date))
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "mode_selection_date_not_found", "message": f"未找到 {date} 的模式选股结果"},
+        )
+    except ModeSelectionError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "mode_selection_unavailable", "message": str(exc)},
+        )
+    except OSError as exc:
+        logger.error("读取模式选股结果失败: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "mode_selection_read_failed", "message": "读取模式选股结果失败"},
+        )
 
 
 def _read_watchlist_codes(service: SystemConfigService) -> list:
